@@ -1,16 +1,20 @@
-#![feature(io)]
+//#![feature(io)]
 
 extern crate termion;
 
-use termion::{RawTerminal, Keys, Style, TermWrite, TermRead, IntoRawMode};
+//use termion::{TermWrite};
+use termion::style;
+use termion::raw::{IntoRawMode, RawTerminal};
+use termion::input::{TermRead, Keys};
+use termion::cursor;
 
-pub use termion::Color;
+pub use termion::color::Color;
 
 use std::io::{self, Write};
 
 pub struct Terminal<'a> {
     stdout: RawTerminal<io::StdoutLock<'a>>,
-    stdin: Keys<io::Chars<io::StdinLock<'a>>>,
+    stdin: Keys<io::Bytes<io::StdinLock<'a>>>,
 }
 
 impl<'a> Terminal<'a> {
@@ -32,7 +36,7 @@ impl<'a> Terminal<'a> {
         }
     }
 
-    pub fn keys(&mut self) -> &mut Keys<io::Chars<io::StdinLock<'a>>> {
+    pub fn keys(&mut self) -> &mut Keys<io::Bytes<io::StdinLock<'a>>> {
         &mut self.stdin
     }
 }
@@ -73,16 +77,16 @@ impl<'a> TextBuilder<'a> {
 impl<'a> Drop for TextBuilder<'a> {
     fn drop(&mut self) {
         debug_assert!(!self.text.is_empty(), "Text not set.");
-        self.term.stdout.goto(self.x, self.y).unwrap();
+        write!(self.term.stdout, "{}", cursor::Goto(self.x, self.y)).unwrap();
 
         if self.bold {
-            self.term.stdout.style(Style::Bold).unwrap();
+            write!(self.term.stdout, "{}", style::Bold).unwrap();
         }
         if self.italic {
-            self.term.stdout.style(Style::Italic).unwrap();
+            write!(self.term.stdout, "{}", style::Italic).unwrap();
         }
 
-        self.term.stdout.write(self.text.as_bytes()).unwrap();
-        self.term.stdout.reset().unwrap();
+        write!(self.term.stdout, "{}", self.text).unwrap();
+        write!(self.term.stdout, "{}", style::Reset).unwrap();
     }
 }
