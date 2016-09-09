@@ -12,20 +12,20 @@ pub use termion::color::Color;
 
 use std::io::{self, Write};
 
-pub struct Terminal<'a> {
-    stdout: RawTerminal<io::StdoutLock<'a>>,
-    stdin: Keys<io::Bytes<io::StdinLock<'a>>>,
+pub struct Terminal<'lock> {
+    stdout: RawTerminal<io::StdoutLock<'lock>>,
+    stdin: Keys<io::Bytes<io::StdinLock<'lock>>>,
 }
 
-impl<'a> Terminal<'a> {
-    pub fn new(stdout: &'a io::Stdout, stdin: &'a io::Stdin) -> Terminal<'a> {
+impl<'lock> Terminal<'lock> {
+    pub fn new(stdout: &'lock io::Stdout, stdin: &'lock io::Stdin) -> Terminal<'lock> {
         Terminal {
             stdout: stdout.lock().into_raw_mode().unwrap(),
             stdin: stdin.lock().keys(),
         }
     }
 
-    pub fn text(&'a mut self) -> TextBuilder<'a> {
+    pub fn text<'term>(&'term mut self) -> TextBuilder<'term, 'lock> {
         TextBuilder {
             term: self,
             text: "",
@@ -36,45 +36,45 @@ impl<'a> Terminal<'a> {
         }
     }
 
-    pub fn keys(&mut self) -> &mut Keys<io::Bytes<io::StdinLock<'a>>> {
+    pub fn keys(&mut self) -> &mut Keys<io::Bytes<io::StdinLock<'lock>>> {
         &mut self.stdin
     }
 }
 
-pub struct TextBuilder<'a> {
-    term: &'a mut Terminal<'a>,
-    text: &'a str,
+pub struct TextBuilder<'term, 'lock: 'term> {
+    term: &'term mut Terminal<'lock>,
+    text: &'term str,
     x: u16,
     y: u16,
     bold: bool,
     italic: bool,
 }
 
-impl<'a> TextBuilder<'a> {
-    pub fn text(&mut self, text: &'a str) -> &mut TextBuilder<'a> {
+impl<'term, 'lock> TextBuilder<'term, 'lock> {
+    pub fn text(&mut self, text: &'term str) -> &mut TextBuilder<'term, 'lock> {
         debug_assert!(self.text.is_empty(), "Setting the text multiple times.");
         self.text = text;
         self
     }
 
-    pub fn pos(&mut self, x: u16, y: u16) -> &mut TextBuilder<'a> {
+    pub fn pos(&mut self, x: u16, y: u16) -> &mut TextBuilder<'term, 'lock> {
         self.x = x;
         self.y = y;
         self
     }
 
-    pub fn bold(&mut self) -> &mut TextBuilder<'a> {
+    pub fn bold(&mut self) -> &mut TextBuilder<'term, 'lock> {
         self.bold = true;
         self
     }
 
-    pub fn italic(&mut self) -> &mut TextBuilder<'a> {
+    pub fn italic(&mut self) -> &mut TextBuilder<'term, 'lock> {
         self.italic = true;
         self
     }
 }
 
-impl<'a> Drop for TextBuilder<'a> {
+impl<'term, 'lock> Drop for TextBuilder<'term, 'lock> {
     fn drop(&mut self) {
         debug_assert!(!self.text.is_empty(), "Text not set.");
         write!(self.term.stdout, "{}", cursor::Goto(self.x, self.y)).unwrap();
