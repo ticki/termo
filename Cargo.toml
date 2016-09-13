@@ -5,4 +5,3 @@ authors = ["Ticki <Ticki@users.noreply.github.com>"]
 
 [dependencies.termion]
 git = "https://github.com/Ticki/termion.git"
-features = ["nightly"]
